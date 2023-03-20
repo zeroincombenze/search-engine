@@ -2,38 +2,44 @@ interactions:
 - request:
     body: null
     headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip
+      Connection:
+      - keep-alive
       Content-Length:
       - '0'
       Content-Type:
-      - application/json
+      - gzip
       User-Agent:
-      - Algolia for Python (2.5.0); Python (3.7.3)
+      - Algolia for Python (1.20.0); Python (3.5.3)
       X-Algolia-API-Key:
-      - 4c043afe97c0c6681b20f9c06049fa65
+      - d1a7ac10bddafb54d0065bd647b8534a
       X-Algolia-Application-Id:
-      - C04JR8U8Y1
+      - SB99T7H2KV
     method: POST
-    uri: https://c04jr8u8y1.algolia.net/1/indexes/demo_algolia_backend_res_partner_binding_fake_en_US/clear
+    uri: https://sb99t7h2kv.algolia.net/1/indexes/demo_algolia_backend_res_partner_binding_fake_en_US/clear
   response:
     body:
-      string: '{"updatedAt":"2021-07-16T16:29:53.531Z","taskID":1104106837002}'
+      string: '{"updatedAt":"2019-11-19T10:19:21.751Z","taskID":41813134872}'
     headers:
       Accept-Encoding:
       - deflate, gzip
       Access-Control-Allow-Origin:
       - '*'
       Cache-Control:
-      - no-store
+      - no-cache
       Connection:
       - keep-alive
       Content-Disposition:
       - inline; filename=a.txt
       Content-Length:
-      - '63'
+      - '61'
       Content-Type:
       - application/json; charset=UTF-8
       Date:
-      - Fri, 16 Jul 2021 16:29:53 GMT
+      - Tue, 19 Nov 2019 10:19:21 GMT
       Server:
       - nginx
       Strict-Transport-Security:
@@ -48,38 +54,44 @@ interactions:
 - request:
     body: '{"attributesForFaceting": ["name"]}'
     headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip
+      Connection:
+      - keep-alive
       Content-Length:
       - '35'
       Content-Type:
-      - application/json
+      - gzip
       User-Agent:
-      - Algolia for Python (2.5.0); Python (3.7.3)
+      - Algolia for Python (1.20.0); Python (3.5.3)
       X-Algolia-API-Key:
-      - 4c043afe97c0c6681b20f9c06049fa65
+      - d1a7ac10bddafb54d0065bd647b8534a
       X-Algolia-Application-Id:
-      - C04JR8U8Y1
+      - SB99T7H2KV
     method: PUT
-    uri: https://c04jr8u8y1.algolia.net/1/indexes/demo_algolia_backend_res_partner_binding_fake_en_US/settings
+    uri: https://sb99t7h2kv.algolia.net/1/indexes/demo_algolia_backend_res_partner_binding_fake_en_US/settings?forwardToReplicas=true
   response:
     body:
-      string: '{"updatedAt":"2021-07-16T16:29:53.606Z","taskID":1104106838002}'
+      string: '{"updatedAt":"2019-11-19T10:19:21.936Z","taskID":41813134882}'
     headers:
       Accept-Encoding:
       - deflate, gzip
       Access-Control-Allow-Origin:
       - '*'
       Cache-Control:
-      - no-store
+      - no-cache
       Connection:
       - keep-alive
       Content-Disposition:
       - inline; filename=a.txt
       Content-Length:
-      - '63'
+      - '61'
       Content-Type:
       - application/json; charset=UTF-8
       Date:
-      - Fri, 16 Jul 2021 16:29:53 GMT
+      - Tue, 19 Nov 2019 10:19:21 GMT
       Server:
       - nginx
       Strict-Transport-Security:

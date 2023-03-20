@@ -7,17 +7,11 @@ from time import sleep
 
 from vcr_unittest import VCRMixin
 
-from odoo.tools import human_size, mute_logger
+from odoo import exceptions
 
 from odoo.addons.connector_search_engine.tests.test_all import TestBindingIndexBase
 
 from ..components.adapter import AlgoliaAdapter
-
-# To refresh cassets data:
-# 0. prepare your Algolia account
-# 1. delete existing cassettes
-# 2. set ALGOLIA_APP_ID + ALGOLIA_API_KEY env vars
-# 3. WARNING: replace real app id and api key in cassets files when done!
 
 
 class TestAlgoliaBackend(VCRMixin, TestBindingIndexBase):
@@ -51,6 +45,11 @@ class TestAlgoliaBackend(VCRMixin, TestBindingIndexBase):
             {"password": self.backend_specific.algolia_api_key},
         )
 
+    def test_index_adapter_no_objectID(self):
+        with self.assertRaises(exceptions.UserError) as err:
+            self.adapter.index([{"foo": "bar"}])
+        self.assertIn("The key objectID is missing in", err.exception.name)
+
     def test_index_adapter(self):
         data = {"objectID": "IamAnObjectID1", "foo": "bar"}
         self.adapter.index([data])
@@ -63,7 +62,7 @@ class TestAlgoliaBackend(VCRMixin, TestBindingIndexBase):
         )
         request_data = json.loads(request.body.decode("utf-8"))["requests"]
         self.assertEqual(len(request_data), 1)
-        self.assertEqual(request_data[0]["action"], "updateObject")
+        self.assertEqual(request_data[0]["action"], "addObject")
         self.assertEqual(request_data[0]["body"], data)
 
     def test_index_adapter_clear(self):
@@ -78,7 +77,7 @@ class TestAlgoliaBackend(VCRMixin, TestBindingIndexBase):
 
     def test_index_adapter_clear_settings(self):
         config = self.env["se.index.config"].create(
-            {"name": "Facet", "body_str": '{"attributesForFaceting": ["name"]}'}
+            {"name": "Facet", "body": {"attributesForFaceting": ["name"]}}
         )
         self.se_index.config_id = config
         self.se_index.clear_index()
@@ -110,7 +109,7 @@ class TestAlgoliaBackend(VCRMixin, TestBindingIndexBase):
         with myvcr.use_cassette(cassette):
             adapter = self.se_index._get_backend_adapter()
             algolia_index = adapter.get_index()
-            settings = algolia_index.get_settings()
+            settings = algolia_index.getSettings()
             self.assertEqual(settings["attributesForFaceting"], ["name"])
 
     def test_delete_adapter(self):
@@ -136,37 +135,3 @@ class TestAlgoliaBackend(VCRMixin, TestBindingIndexBase):
             sleep(2)
         res = [x for x in self.adapter.each()]
         self.assertEqual(res, data)
-
-    @mute_logger("odoo.addons.connector_search_engine.models.se_binding")
-    def test_missing_object_key(self):
-        self.record_id_export_line.unlink()
-        res = self.partner_binding.recompute_json()
-        error_string = "\n".join(
-            ["Validation errors", "{}: The key `objectID` is missing in:"]
-        ).format(str(self.partner_binding))
-        self.assertTrue(res.startswith(error_string))
-
-    def test_added_object_key(self):
-        self.assertTrue(self.partner_binding.data)
-        self.assertIn("objectID", self.partner_binding.data)
-        self.assertEqual(
-            self.partner_binding.data["objectID"], self.partner_binding.record_id.id
-        )
-
-    def test_customize_object_key(self):
-        self.env["ir.exports.line"].create(
-            {"export_id": self.exporter.id, "name": "id:objectID"}
-        )
-        self.partner_binding.recompute_json()
-        self.assertTrue(self.partner_binding.data)
-        self.assertIn("objectID", self.partner_binding.data)
-        self.assertEqual(self.partner_binding.data["objectID"], self.partner_binding.id)
-
-    def test_index_size(self):
-        self.assertTrue(self.partner_binding.data)
-        self.assertEqual(
-            self.partner_binding.data_size,
-            human_size(self.partner_binding._get_bytes_size()),
-        )
-        self.partner_binding.data = {}
-        self.assertEqual(self.partner_binding.data_size, "2.00 bytes")

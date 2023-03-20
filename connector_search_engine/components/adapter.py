@@ -16,21 +16,16 @@ class SeAdapter(AbstractComponent):
         return True  # pragma: no cover
 
     def index(self, datas):
-        raise NotImplementedError()
+        return NotImplemented  # pragma: no cover
 
     def delete(self, binding_ids):
-        raise NotImplementedError()
+        return NotImplemented  # pragma: no cover
 
     def clear(self):
-        raise NotImplementedError()
+        return NotImplemented  # pragma: no cover
 
     def each(self):
-        raise NotImplementedError()
+        return NotImplemented  # pragma: no cover
 
     def settings(self, force=False):
-        raise NotImplementedError()
-
-    def external_id(self, record):
-        # Doesn't matter how the external id is stored on SE side, it should always
-        # be a valid odoo id.
-        return int(record[self._record_id_key])
+        return NotImplemented  # pragma: no cover

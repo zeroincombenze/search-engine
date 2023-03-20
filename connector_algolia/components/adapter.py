@@ -5,7 +5,8 @@
 
 import logging
 
-from odoo import exceptions
+from odoo import _
+from odoo.exceptions import UserError
 
 from odoo.addons.component.core import Component
 
@@ -13,7 +14,7 @@ _logger = logging.getLogger(__name__)
 
 
 try:
-    from algoliasearch.search_client import SearchClient
+    import algoliasearch
 except ImportError:  # pragma: no cover
     _logger.debug("Can not import algoliasearch")
 
@@ -30,10 +31,10 @@ class AlgoliaAdapter(Component):
     def _get_client(self):
         backend = self.backend_record
         account = backend._get_api_credentials()
-        return SearchClient.create(backend.algolia_app_id, account["password"])
+        return algoliasearch.client.Client(backend.algolia_app_id, account["password"])
 
     def _get_index(self, client):
-        return client.init_index(self.work.index.name)
+        return client.initIndex(self.work.index.name)
 
     def settings(self, force=False):
         """Push advanced settings like facettings attributes."""
@@ -46,15 +47,19 @@ class AlgoliaAdapter(Component):
             index_names = [item.get("name") for item in indexes.get("items", [])]
             force = index.index_name not in index_names or False
         if data and force:
-            index.set_settings(data)
+            index.setSettings(data)
 
     def index(self, records):
         index = self.get_index()
-        for record in records:
-            error = self._validate_record(record)
-            if error:
-                raise exceptions.ValidationError(error)
-        index.save_objects(records)
+        # Ensure that the objectID is set because algolia will use it
+        # for creating or updating the record
+        for data in records:
+            if not data.get(self._record_id_key):
+                raise UserError(
+                    _("The key %s is missing in the data %s")
+                    % (self._record_id_key, data)
+                )
+        index.add_objects(records)
 
     def delete(self, binding_ids):
         index = self.get_index()
@@ -62,7 +67,7 @@ class AlgoliaAdapter(Component):
 
     def clear(self):
         index = self.get_index()
-        index.clear_objects()
+        index.clear_index()
         self.settings(force=True)
 
     def iter(self):
@@ -72,4 +77,4 @@ class AlgoliaAdapter(Component):
 
     def each(self):
         index = self.get_index()
-        return index.browse_objects()
+        return index.browse_all()

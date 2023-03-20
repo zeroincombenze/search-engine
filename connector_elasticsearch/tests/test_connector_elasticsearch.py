@@ -5,14 +5,10 @@ from time import sleep
 
 from vcr_unittest import VCRMixin
 
+from odoo import exceptions
 from odoo.tools import mute_logger
 
 from odoo.addons.connector_search_engine.tests.test_all import TestBindingIndexBase
-
-# NOTE: if you need to refresh tests, you can fire up an ElasticSearch instance
-# using `docker-compose.elasticsearch.example.yml` in this same folder.
-# If you are not running in a docker env, you'll need to add an alias
-# in /etc/hosts to make "elastic" name point to 127.0.0.1
 
 
 class TestConnectorElasticsearch(VCRMixin, TestBindingIndexBase):
@@ -47,9 +43,17 @@ class TestConnectorElasticsearch(VCRMixin, TestBindingIndexBase):
         values.update({"config_id": cls.se_config.id})
         return values
 
+    def test_index_adapter_no_objectID(self):
+        self.partner_binding.sync_state = "to_update"
+        with self.assertRaises(exceptions.UserError) as err:
+            self.se_index.batch_export()
+        self.assertIn("The key objectID is missing in", err.exception.name)
+
     def test_index_adapter(self):
         # Set partner to be updated with fake vals in data
-        self.partner_binding.write({"sync_state": "to_update", "data": {"id": "foo"}})
+        self.partner_binding.write(
+            {"sync_state": "to_update", "data": {"objectID": "foo"}}
+        )
         # Export index to elasticsearch should be called
         self.se_index.batch_export()
         # We should have 3 or 4 request...
@@ -77,26 +81,26 @@ class TestConnectorElasticsearch(VCRMixin, TestBindingIndexBase):
             },
         )
         index_data = json.loads(lines[1])
-        self.assertDictEqual(index_data, {"id": "foo"})
+        self.assertDictEqual(index_data, {"objectID": "foo"})
 
     def test_index_config_as_str(self):
         self.se_config.write({"body_str": '{"mappings": {"1":1}}'})
         self.assertDictEqual(self.se_config.body, {"mappings": {"1": 1}})
-        self.assertEqual(self.se_config.body_str, '{"mappings": {"1":1}}')
+        self.assertEqual(self.se_config.body_str, '{"mappings": {"1": 1}}')
 
     def test_index_adapter_iter(self):
-        data = [{"id": "foo"}, {"id": "foo2"}, {"id": "foo3"}]
+        data = [{"objectID": "foo"}, {"objectID": "foo2"}, {"objectID": "foo3"}]
         self.adapter.clear()
         self.adapter.index(data)
         if self.cassette.dirty:
             # when we record the test we must wait for algolia
             sleep(2)
         res = [x for x in self.adapter.each()]
-        res.sort(key=lambda d: d["id"])
+        res.sort(key=lambda d: d["objectID"])
         self.assertListEqual(res, data)
 
     def test_index_adapter_delete(self):
-        data = [{"id": "foo"}, {"id": "foo2"}, {"id": "foo3"}]
+        data = [{"objectID": "foo"}, {"objectID": "foo2"}, {"objectID": "foo3"}]
         self.adapter.clear()
         self.adapter.index(data)
         if self.cassette.dirty:
@@ -107,12 +111,12 @@ class TestConnectorElasticsearch(VCRMixin, TestBindingIndexBase):
             # when we record the test we must wait for algolia
             sleep(2)
         res = [x for x in self.adapter.each()]
-        res.sort(key=lambda d: d["id"])
-        self.assertListEqual(res, [{"id": "foo2"}])
+        res.sort(key=lambda d: d["objectID"])
+        self.assertListEqual(res, [{"objectID": "foo2"}])
 
     @mute_logger("odoo.addons.connector_search_engine.models.se_binding")
     def test_index_adapter_delete_nonexisting_documents(self):
         """We try to delete records that do not exist.
-        Because it does not matter, it is just ignored. No exception.
+           Because it does not matter, it is just ignored. No exception.
         """
         self.adapter.delete(["donotexist", "donotexisteither"])

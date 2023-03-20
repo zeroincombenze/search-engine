@@ -6,6 +6,4 @@
 from . import se_backend
 from . import se_backend_spec_abstract
 from . import se_index
-from . import se_index_config
 from . import se_binding
-from . import se_binding_todelete

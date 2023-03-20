@@ -3,7 +3,8 @@
 
 import logging
 
-from odoo import exceptions
+from odoo import _
+from odoo.exceptions import UserError
 
 from odoo.addons.component.core import Component
 
@@ -37,47 +38,55 @@ class ElasticsearchAdapter(Component):
 
     def _get_es_client(self):
         backend = self.backend_record
-        api_key = (
-            (backend.api_key_id, backend.api_key)
-            if backend.api_key_id and backend.api_key
-            else None
-        )
-        return elasticsearch.Elasticsearch(
-            [backend.es_server_host],
-            connection_class=self._es_connection_class,
-            api_key=api_key,
+
+        es = elasticsearch.Elasticsearch(
+            [backend.es_server_host], connection_class=self._es_connection_class
         )
 
-    def index(self, records):
+        if not es.ping():  # pragma: no cover
+            raise ValueError("Connect Exception with elasticsearch")
+
+        if not es.indices.exists(self._index_name):
+            es.indices.create(
+                index=self._index_name, body=self.work.index.config_id.body
+            )
+        return es
+
+    def index(self, datas):
         es = self._get_es_client()
-        records_for_bulk = []
-        for record in records:
-            error = self._validate_record(record)
-            if error:
-                raise exceptions.ValidationError(error)
-            action = {
-                "_index": self._index_name,
-                "_id": record.get(self._record_id_key),
-                "_source": record,
-            }
-            records_for_bulk.append(action)
+        dataforbulk = []
+        for data in datas:
+            # Ensure that the _record_id_key is set for creating/updating
+            # the record
+            if not data.get(self._record_id_key):
+                raise UserError(
+                    _("The key %s is missing in the data %s")
+                    % (self._record_id_key, data)
+                )
+            else:
+                action = {
+                    "_index": self._index_name,
+                    "_id": data.get(self._record_id_key),
+                    "_source": data,
+                }
+                dataforbulk.append(action)
 
-        res = elasticsearch.helpers.bulk(es, records_for_bulk)
-        # checks if number of indexed object and object in records are equal
-        return len(records) - res[0] == 0
+        res = elasticsearch.helpers.bulk(es, dataforbulk)
+        # checks if number of indexed object and object in datas are equal
+        return len(datas) - res[0] == 0
 
     def delete(self, binding_ids):
         es = self._get_es_client()
-        records_for_bulk = []
+        dataforbulk = []
         for binding_id in binding_ids:
             action = {
                 "_op_type": "delete",
                 "_index": self._index_name,
                 "_id": binding_id,
             }
-            records_for_bulk.append(action)
+            dataforbulk.append(action)
         try:
-            elasticsearch.helpers.bulk(es, records_for_bulk)
+            elasticsearch.helpers.bulk(es, dataforbulk)
         except elasticsearch.helpers.errors.BulkIndexError as e:
             # if the document we are trying to delete does not exist,
             # we can consider deletion a success (there is nothing to do).
@@ -93,24 +102,13 @@ class ElasticsearchAdapter(Component):
         self._get_es_client()
         return res["acknowledged"]
 
+    def iter(self):
+        # `iter` is a built-in keyword -> to be replaced
+        _logger.warning("DEPRECATED: use `each` instead of `iter`.")
+        return self.each()
+
     def each(self):
         es = self._get_es_client()
         res = es.search(index=self._index_name, filter_path=["hits.hits._source"])
-        if not res:
-            # eg: empty index
-            return []
         hits = res["hits"]["hits"]
         return [r["_source"] for r in hits]
-
-    def settings(self, force=False):
-        es = self._get_es_client()
-        index_name = self._index_name
-        if not es.indices.exists(index_name) and force:
-            es.indices.create(index=index_name, body=self.work.index.config_id.body)
-            msg = "Missing index %s created."
-            _logger.info(msg, index_name)
-        # TODO: understand how to handle this only for dynamic indexes.
-        # For non dynamic indexes you should delete the index and reindex.
-        # if not created and force:
-        #     es.indices.put_settings(self.work.index.config_id.body, index=index_name)
-        return True
